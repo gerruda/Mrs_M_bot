@@ -5,11 +5,13 @@ from aiogram.utils import exceptions
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from os import getenv
 from sys import exit
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
+# from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.contrib.fsm_storage.redis import RedisStorage2
 
 
 bot_token = getenv("BOT_TOKEN")
-storage = MemoryStorage()
+# storage = MemoryStorage()
+storage = RedisStorage2()
 if not bot_token:
     exit("Error: no token provided")
 bot = Bot(token=bot_token) #Take token from secret variable in env
@@ -58,6 +60,7 @@ async def settings_joice(call: types.CallbackQuery, state: FSMContext):
     for parametr in available_parametr:
         keyboard.add(types.InlineKeyboardButton(text=str(parametr) + ' min', callback_data=str(parametr)))
     await Bot_settings.next()
+    print(storage)
     await call.message.answer('Для отмены /cancel Выберете длительность наказания или введите числовое значение'
                               ' с клавиатуры.  Число должно быть целое и указывать на колличество минут.',
                               reply_markup=keyboard)
@@ -68,6 +71,7 @@ async def settings_parametr(call: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
     await call.message.answer(f"Вы выбрали наказание {user_data['chosen_settings']} на {call.data} минут. "
                          f"Хулиганы, должны быть наказаны! :-)")
+    await call.message.answer_sticker(r'CAACAgIAAxkBAAFYGVJhWrh9gcGYApeMjaWgE4wpMeU1SgACEhEAAkyl0Uq2eAxcQwyIYSEE')
     await call.message.delete()
 
 
@@ -77,6 +81,8 @@ async def cancel(message: types.Message, state: FSMContext):
     await state.finish()
     await bot.delete_message(message.chat.id, user_data['msg_id'])
     await message.answer('Настройка отмененна')
+    await message.answer_sticker(r'CAACAgIAAxkBAAFYGXBhWriIetmN9xPMRENNib6c0UnCegACYg8AAsjP0EpiH_N0Cs8W6CEE')
+
 
 
 async def cmd_start(message: types.Message):
@@ -128,8 +134,12 @@ async def set_ro(message: types.Message):
 #     await message.reply(message.text)
 
 
+async def shutdown(dispatcher: Dispatcher):
+    await dispatcher.storage.close()
+    await dispatcher.storage.wait_closed()
+
 
 if __name__ == '__main__':
-    executor.start_polling(dp)
+    executor.start_polling(dp, on_shutdown=shutdown)
     # executor.start_polling(dp, skip_updates=True)
 
